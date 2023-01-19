@@ -1,0 +1,4 @@
+env_*/
+__pycache__/
+out/
+trash/

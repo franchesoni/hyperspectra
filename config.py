@@ -1,0 +1,1 @@
+data_path = "/home/franchesoni/data/kayrros/solarimages"
