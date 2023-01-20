@@ -126,6 +126,11 @@ def visualize(*images):
         plt.axis("off")
     plt.show()
 
+def save_arrays(arrays: list, names: list):
+    assert len(arrays) == len(names)
+    for name, arr in zip(names, arrays):
+        np.save(f"out/{name}.npy", arr)
+
 def preprocess(*images):
     # here we could do, for instance, histogram equalization
     s = 1000
