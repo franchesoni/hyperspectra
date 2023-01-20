@@ -9,12 +9,16 @@ from config import data_path
 
 site_names = sorted(os.listdir(data_path))
 
+def get_max_date_index(site_name_index):
+  site_name = site_names[site_name_index]
+  max_date_index = len(utils.get_filenames(os.path.join(data_path, site_name))[1])
+  return max_date_index
 
 
 def get_data(site_name_index, date_index):
   # load all images in memory
   site_name = site_names[site_name_index]
-  max_date_index = len(utils.get_filenames(os.path.join(data_path, site_name))[1])
+  max_date_index = get_max_date_index(site_name_index)
   msis, rgbs, gts = [], [], []
   for date_index in tqdm.tqdm(range(min(max_date_index, date_index+1))):
     folder = os.path.join(data_path, site_name)
