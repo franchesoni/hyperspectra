@@ -1,13 +1,15 @@
+import random
 import torch
 import numpy as np
 import tqdm
-import skimage
-import sklearn
+import sklearn.ensemble
 import jax.random
 from functools import partial
 
-from data import get_data
+from data import get_data, get_max_date_index, site_names
 import gmm_jax
+from utils import save_arrays
+
 
 
 ############# MLP ############
@@ -48,6 +50,15 @@ def build_and_train_gaussian(X, Y):
   gmm_fn = partial(gmm_jax.predict, means=means, covs=covs, weights=weights)
   return gmm_fn
 
+###############
+
+########## KNN #########
+def build_and_train_rf(X, Y):
+  rf_cls = sklearn.ensemble.RandomForestClassifier(class_weight="balanced", n_jobs=-1)
+  rf_cls = rf_cls.fit(X, Y.squeeze())
+  return rf_cls.predict
+
+###############
 
 
 
@@ -65,16 +76,35 @@ def predict(msi, predictor_fn, torchtensor):
 
 
 if __name__ == '__main__':
-  site_name_index, date_index = 0, 10
-  msi, rgb, gt, X, Y = get_data(site_name_index, date_index)
+  torch.manual_seed(0)
+  random.seed(0)
+  np.random.seed(0)
 
-  # mlp = build_and_train_mlp(X[:-1], Y[:-1], 10)#00)
-  # pred_mlp = predict(msi, mlp, torchtensor=True)
+  for site_name_index in [4, 5]:
+    site_name = site_names[site_name_index]
+    max_date_index = get_max_date_index(site_name_index)
+    for date_index in range(max_date_index):
+      msi, rgb, gt, X, Y = get_data(site_name_index, date_index)
+      if msi.shape[0] == 1:
+        save_arrays([rgb, gt], [f"{site_name}/0_rgb", f"{site_name}/0_gt"])
+        continue
+        
+      mlp = build_and_train_mlp(X[:-1], Y[:-1], 500)
+      pred_mlp = predict(msi, mlp, torchtensor=True)
 
-  gmm_fn = build_and_train_gaussian(X[:-1], Y[:-1])
-  pred_gmm = predict(msi, gmm_fn, torchtensor=False)
+      gmm_fn = build_and_train_gaussian(X[:-1], Y[:-1])
+      pred_gmm = predict(msi, gmm_fn, torchtensor=False)
 
-  breakpoint()
+      rf_fn = build_and_train_rf(X[:-1], Y[:-1])
+      pred_rf = predict(msi, rf_fn, torchtensor=False)
+
+      save_arrays([rgb, gt, pred_mlp, 
+     pred_gmm, pred_rf
+      ], 
+      [f"{site_name}/{date_index}_rgb", f"{site_name}/{date_index}_gt", f"{site_name}/{date_index}_mlp",
+      f"{site_name}/{date_index}_gmm", f"{site_name}/{date_index}_rf"
+      ])
+
 
   
 
