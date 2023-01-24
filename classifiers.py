@@ -40,27 +40,25 @@ def build_and_train_mlp(X, Y, n_epochs=1000):
   acc = (1.*(torch.nn.functional.sigmoid(y_pred).round() == Y)).mean()
   print(f"Accuracy = {acc}")
 
-  return mlp
+  return torch.nn.Sequential(mlp, torch.nn.Sigmoid()).eval()
 ###############
 
 ########## Gaussian #########
 def build_and_train_gaussian(X, Y):
   X_pos = X[(Y == 1).squeeze()]
-  means, covs, weights = gmm_jax.gmm(jax.random.PRNGKey(0), X_pos, 1)
-  gmm_fn = partial(gmm_jax.predict, means=means, covs=covs, weights=weights)
+  means, invcov = gmm_jax.gaussian(X_pos)
+  gmm_fn = partial(gmm_jax.gaussian_predict, mus=means, invsigma=invcov)
   return gmm_fn
-
 ###############
 
 ########## KNN #########
 def build_and_train_rf(X, Y):
-  rf_cls = sklearn.ensemble.RandomForestClassifier(class_weight="balanced", n_jobs=-1)
+  rf_cls = sklearn.ensemble.RandomForestClassifier(class_weight="balanced", n_jobs=-1, verbose=1)
   rf_cls = rf_cls.fit(X, Y.squeeze())
-  return rf_cls.predict
-
+  def rf_fn(x):
+    return rf_cls.predict_proba(x)[:, 1]
+  return rf_fn
 ###############
-
-
 
 
 def predict(msi, predictor_fn, torchtensor):
@@ -79,6 +77,22 @@ if __name__ == '__main__':
   torch.manual_seed(0)
   random.seed(0)
   np.random.seed(0)
+  
+  # # generate samples from a bidimiensional gaussian distribution
+  # mus = np.array([[-2, 1]])
+  # sigma = np.array([[1, 0.5], [0.5, 1]])
+  # X = np.random.multivariate_normal(mus[0], sigma, size=1000)
+  # import matplotlib.pyplot as plt 
+  # plt.scatter(X[:, 0], X[:, 1])
+  # plt.show()
+
+  # Y = np.ones((X.shape[0], 1))
+  # gmm_fn = build_and_train_gaussian(X, Y)
+  # pred_gmm = np.exp(np.array(predict(X, gmm_fn, torchtensor=False)))
+
+  # ax = plt.figure().add_subplot(projection='3d')
+  # ax.plot_trisurf(X[:, 0], X[:, 1], pred_gmm.squeeze(), antialiased=True)
+  # plt.show()
 
   for site_name_index in [4, 5]:
     site_name = site_names[site_name_index]

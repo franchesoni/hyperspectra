@@ -1,5 +1,6 @@
 # Copyright (C) 2022, Thibaud Ehret <ehret.thibaud@gmail.com>
 
+import scipy
 import jax.numpy as jnp
 import jax.scipy as jscipy
 import jax
@@ -152,6 +153,8 @@ def kmeans_init(key, X, n, n_try=1, max_iter=100, tol=1e-3):
 
     return means, covs, weights
 
+
+
 # Initialize and fit a gmm on the data
 # TODO doc
 @partial(jax.jit, static_argnums=(2,3,4,5))
@@ -169,5 +172,32 @@ def predict(X, means, covs, weights):
     # OPTI check if more efficient to do that or solve X-mu like Aitor did
     # Output of jnp.linalg.cholesky is lower triangular
     inv_covs_chol = jax.vmap(lambda c,e: jscipy.linalg.solve_triangular(c,e,lower=True), in_axes=(0,None))(covs_chol, jnp.eye(dim))
-    idx = jnp.argmax(log_pdf(X, means, inv_covs_chol) + jnp.log(weights[None,:]), axis=-1)
+    logpdf = log_pdf(X, means, inv_covs_chol)
+    return logpdf
+    breakpoint()
+    idx = jnp.argmax( + jnp.log(weights[None,:]), axis=-1)
     return idx
+
+##################
+def gaussian(X):
+    # X is of shape n x f
+    print("computing mean and covariance...")
+    return jnp.mean(X, axis=0), jnp.linalg.pinv(jnp.cov(X.T))
+
+
+log2pi = jnp.log(2 * jnp.pi)
+def gaussian_predict(X, mus, invsigma):
+    """
+    Compute the log probabilities
+    """
+    nsample, nbandes = X.shape
+    kchi2 = scipy.stats.chi2(nbandes)
+    assert mus.shape == (nbandes,)
+    assert invsigma.shape == (nbandes, nbandes)
+
+    # p1 = jnp.log(jscipy.linalg.det(invsigma))  
+    # p2 = nbandes * log2pi 
+    mahalanobis_dist = ((X - mus[None]) @ invsigma   # nsample x nbandes
+     * (X - mus[None])).sum(axis=1)  # nsample
+    return kchi2.cdf(mahalanobis_dist)
+    # return 0.5 * (p1 - p2 - p3)
